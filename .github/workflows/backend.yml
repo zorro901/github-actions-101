@@ -1,12 +1,26 @@
 name: backend
 
 on:
-    push:
-        branches:
-            - main
+  push:
+    branches:
+      - main
+
+defaults:
+  run:
+    working-directory: backend
 
 jobs:
-    backend:
-        runs-on: ubuntu-latest
-        steps:
-          - run: echo Hello World
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: pnpm/action-setup@v2
+        with:
+          version: 7
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'pnpm'
+      - name: Install dependencies
+        run: pnpm install
