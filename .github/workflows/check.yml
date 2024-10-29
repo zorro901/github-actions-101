@@ -1,7 +1,11 @@
 name: Sample Workflow
 
 on:
-  workflow_call:
+  push:
+    branches:
+      - main
+#on:
+#  workflow_call:
 #    inputs:
 #      aws_region:
 #        required: true
