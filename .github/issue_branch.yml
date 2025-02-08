@@ -1,1 +1,3 @@
-.github/issue_branch.yml
+mode: auto
+silent: false
+branchName: 'feature/${issue.title}_${issue.number}'
