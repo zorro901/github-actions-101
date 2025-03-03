@@ -16,8 +16,9 @@ jobs:
             ブランチ: `${{ github.ref_name }}`
             コミット: `{commit_sha}`
 
-            `${{ job.status == 'success' && '✅' || '❌' }}` Unitテスト `PASS`
-            `${{ job.status == 'success' && '✅' || '❌' }}` E2Eテスト  `PASS`
+            テスト結果
+            > Unitテスト `PASS`
+            > E2Eテスト  `PASS`
 
             コミット詳細
             > ${{ github.event.head_commit.message }}
