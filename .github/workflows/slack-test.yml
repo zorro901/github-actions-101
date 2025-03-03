@@ -11,7 +11,7 @@ jobs:
         if: always()
         with:
           status: ${{ job.status }}
-          notification_title: `${{ job.status == 'success' && '✅' || '❌' }}` <${{ github.server_url }}/${{ github.repository }}|${{ github.repository }}> のテストが${{ job.status == 'success' && '成功しました' || '失敗しました' }}
+          notification_title: "${{ job.status == 'success' && '✅' || '❌' }} <${{ github.server_url }}/${{ github.repository }}|${{ github.repository }}> のテストが${{ job.status == 'success' && '成功しました' || '失敗しました' }}"
           message_format: |
             ブランチ: `{branch}`
             コミット: `{commit_sha}`
