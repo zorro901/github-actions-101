@@ -46,7 +46,7 @@ jobs:
             > Unitテスト `${{ job.status == 'success' && 'PASS' || 'FAIL' }}`
             > E2Eテスト  `${{ job.status == 'success' && 'PASS' || 'FAIL' }}`
             
-            *📋 PR コミット:* ${{ steps.link.outputs.issue_link != '' && '(' || '' }}${{ steps.get-pr-info.outputs.issue_link }}${{ steps.get-pr-info.outputs.issue_link != '' && ')' || '' }}
+            *📋 PR コミット:* ${{ steps.link.outputs.issue_link }}
             ${{ steps.get-commits.outputs.pr_commits }}
 
           footer: "<${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}|コミット詳細を表示> | <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|ワークフロー実行を表示>"
