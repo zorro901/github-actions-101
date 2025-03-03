@@ -13,38 +13,25 @@ jobs:
         with:
           fetch-depth: 0  # 全てのコミットを取得
 
-      # PRイベントまたはmainブランチへのpushイベント時にPR情報を取得
-      - name: Get PR information
-        uses: 8BitJonny/gh-get-current-pr@3.0.0
-        id: PR
-        with:
-          github-token: ${{ github.token }}
-          # イベントタイプに応じて適切なSHAを設定
-          sha: ${{ github.event.pull_request.head.sha || github.sha }}
-          filterOutClosed: false
-          filterOutDraft: false
-
-      # PR情報が見つかった場合、そのPRのコミット一覧を取得
-      - name: Get PR Commits using GitHub CLI
-        id: pr-commits
-        if: steps.PR.outputs.pr_found == 'true'
+      - name: Get PR commits
+        id: get-commits
         run: |
-          PR_NUMBER="${{ steps.PR.outputs.number }}"
-          REPO_URL="${{ github.server_url }}/${{ github.repository }}"
-          ISSUES_URL="$REPO_URL/issues"
+          # PR番号を設定 (イベントから取得するか、直接指定)
+          PR_NUMBER=${{ github.event.pull_request.number || inputs.pr_number }}
           
-          echo "PRが見つかりました: #$PR_NUMBER - ${{ steps.PR.outputs.pr_title }}"
+          # コミットのoidとmessageHeadlineを取得
+          COMMITS=$(gh pr view $PR_NUMBER --repo ${{ github.repository }} --json commits \
+            --jq '.commits[] | {oid: .oid, messageHeadline: .messageHeadline}')
           
-          # GitHub CLIを使用してPRのコミット一覧を取得
-          COMMITS=$(gh pr view $PR_NUMBER --json commits --jq '.commits[].commit.message' | \
-                  grep -v "^$" | head -n 1 | sed 's/^/* /' | \
-                  perl -pe 's!#(\d+)!\(#<'$ISSUES_URL'/$1|$1>\)!g')
+          # 結果をエコー (デバッグ用)
+          echo "PR #$PR_NUMBER Commits:"
+          echo "$COMMITS"
           
-          echo "commits<<EOF" >> $GITHUB_OUTPUT
-          echo "$COMMITS" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+          # 結果を出力変数に設定 (エスケープして設定)
+          COMMITS_ESCAPED=$(echo "$COMMITS" | jq -c -s '.')
+          echo "commits=$COMMITS_ESCAPED" >> $GITHUB_OUTPUT
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       # PR情報がなかった場合のフォールバック
       - name: Set fallback commit info
@@ -68,20 +55,8 @@ jobs:
             > E2Eテスト  `${{ job.status == 'success' && 'PASS' || 'FAIL' }}`
             
             PR情報:
-              - PR JSON: ${{ toJSON(fromJSON(steps.PR.outputs.pr)) }}
-              - PR Found: `${{ steps.PR.outputs.pr_found }}`
-              - PR Number: `${{ steps.PR.outputs.number }}`
-              - PR Title: `${{ steps.PR.outputs.pr_title }}`
-              - PR URL: ${{ steps.PR.outputs.pr_url }}
-              - Created: `${{ steps.PR.outputs.pr_created_at }}`
-              - Merged: `${{ steps.PR.outputs.pr_merged_at }}`
-              - Closed: `${{ steps.PR.outputs.pr_closed_at }}`
-              - Labels: `${{ steps.PR.outputs.pr_labels }}`
-            
-            ${{ steps.PR.outputs.pr_found == 'true' && format('PR: <{0}/pull/{1}|#{1} {2}>', github.server_url, steps.PR.outputs.number, steps.PR.outputs.pr_title) || 'PR: なし' }}
-            
-            PRコミット
-            ${{ steps.PR.outputs.pr_found == 'true' && steps.pr-commits.outputs.commits || steps.fallback-commits.outputs.commits }}
+              - PR JSON: ${{ toJSON(fromJSON(steps.get-commits.outputs.commits)) }}
+
           footer: "<${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}|コミット詳細を表示> | <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|ワークフロー実行を表示>"
           notify_when: "success,failure"
         env:
