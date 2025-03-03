@@ -6,31 +6,15 @@ jobs:
   github_check_job:
     runs-on: ubuntu-latest
     steps:
-      - name: 短いコミットハッシュを設定
-        run: echo "SHORT_SHA=${GITHUB_SHA::7}" >> $GITHUB_ENV
-
       - name: テスト結果の Slack 通知
         uses: ravsamhq/notify-slack-action@v2
         if: always()
         with:
           status: ${{ job.status }}
-          notification_title: "{emoji} {workflow} テスト ${{ job.status == 'success' && '成功' || '失敗' }} #${{ github.run_number }}"
+          notification_title: `${{ job.status == 'success' && '✅' || '❌' }}` <${{ github.server_url }}/${{ github.repository }}|${{ github.repository }}> のテストが${{ job.status == 'success' && '成功しました' || '失敗しました' }}
           message_format: |
             ブランチ: `{branch}`
-            コミット: `${{ env.SHORT_SHA }}`
-
-            {branch}
-            {branch_url}
-            {commit_url}
-            {commit_sha}
-            {emoji}
-            {repo}
-            {repo_url}
-            {status_message}
-            {run_url}
-            {job}
-            {workflow}
-            {workflow_url}
+            コミット: `{commit_sha}`
 
             `${{ job.status == 'success' && '✅' || '❌' }}` Unitテスト
             `${{ job.status == 'success' && '✅' || '❌' }}` E2Eテスト
