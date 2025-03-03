@@ -69,6 +69,16 @@ jobs:
             > Unitテスト `${{ job.status == 'success' && 'PASS' || 'FAIL' }}`
             > E2Eテスト  `${{ job.status == 'success' && 'PASS' || 'FAIL' }}`
             
+            PR情報:
+              - PR Found: `${{ steps.PR.outputs.pr_found }}`
+              - PR Number: `${{ steps.PR.outputs.number }}`
+              - PR Title: `${{ steps.PR.outputs.pr_title }}`
+              - PR URL: ${{ steps.PR.outputs.pr_url }}
+              - Created: `${{ steps.PR.outputs.pr_created_at }}`
+              - Merged: `${{ steps.PR.outputs.pr_merged_at }}`
+              - Closed: `${{ steps.PR.outputs.pr_closed_at }}`
+              - Labels: `${{ steps.PR.outputs.pr_labels }}`
+            
             ${{ steps.PR.outputs.pr_found == 'true' && format('PR: <{0}/pull/{1}|#{1} {2}>', github.server_url, steps.PR.outputs.number, steps.PR.outputs.pr_title) || 'PR: なし' }}
             
             PRコミット
