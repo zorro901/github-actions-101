@@ -11,50 +11,25 @@ jobs:
       - name: チェックアウト
         uses: actions/checkout@v4
         with:
-          fetch-depth: 5  # 最近の5つのコミットを取得
+          fetch-depth: 0  # 全てのコミットを取得
 
-      - name: Get PR and commit information
-        id: pr-info
+      - name: Get PR commits
+        id: get-commits
         run: |
-          EVENT_NAME="${{ github.event_name }}"
-          REPO_URL="${{ github.server_url }}/${{ github.repository }}"
-          ISSUES_URL="$REPO_URL/issues"
-          if [ "$EVENT_NAME" = "pull_request" ]; then
-            PR_NUMBER="${{ github.event.pull_request.number }}"
-            PR_TITLE="${{ github.event.pull_request.title }}"
-            HEAD_BRANCH="${{ github.event.pull_request.head.ref }}"
-            BASE_BRANCH="${{ github.event.pull_request.base.ref }}"
-          else
-            # Push eventの場合、マージされたPRの情報を取得
-            PR_NUMBER=$(gh pr list --search "${{ github.sha }}" --state merged --json number --jq '.[0].number')
-            if [ ! -z "$PR_NUMBER" ]; then
-              PR_INFO=$(gh pr view $PR_NUMBER --json title,headRefName,baseRefName)
-              PR_TITLE=$(echo $PR_INFO | jq -r '.title')
-              HEAD_BRANCH=$(echo $PR_INFO | jq -r '.headRefName')
-              BASE_BRANCH=$(echo $PR_INFO | jq -r '.baseRefName')
-            fi
-          fi
-
-          if [ ! -z "$PR_NUMBER" ]; then
-            git fetch origin pull/$PR_NUMBER/head:pr-$PR_NUMBER
-
-            COMMITS=$(git log --reverse --pretty=format:"* %s" origin/$BASE_BRANCH..pr-$PR_NUMBER | perl -pe 's!#(\d+)!\(#<'$ISSUES_URL'/$1|$1>\)!g')
-            {
-              echo "number=$PR_NUMBER"
-              echo "title=$PR_TITLE"
-              echo "head_branch=$HEAD_BRANCH"
-              echo "head_branch_url=<$REPO_URL/tree/$HEAD_BRANCH|$HEAD_BRANCH>"
-              echo "base_branch=$BASE_BRANCH"
-              echo "commits<<EOF"
-              echo "$COMMITS"
-              echo "EOF"
-            } >> $GITHUB_OUTPUT
-          else
-            echo "branch=${{ github.ref_name }}" >> $GITHUB_OUTPUT
-            echo "commits=No PR found for this commit" >> $GITHUB_OUTPUT
-          fi
+          echo "pr_commits<<EOF" >> $GITHUB_OUTPUT
+          gh pr list --json commits | jq -r '.[] | .commits | reverse | .[] | "• <${{ github.server_url }}/${{ github.repository }}/commit/\(.oid)|" + (.oid | .[0:7]) + "> \(.messageHeadline)"' >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate Issue Link
+        id: link
+        run: |
+          BRANCH_NAME="${{ github.head_ref || github.ref_name }}"
+          ISSUE_NUMBER=$(echo $BRANCH_NAME | grep -o '^[0-9]*')
+          ISSUE_LINK="https://github.com/${{ github.repository }}/issues/$ISSUE_NUMBER"
+          echo "issue_number=$ISSUE_NUMBER" >> $GITHUB_OUTPUT
+          echo "issue_link=$ISSUE_LINK" >> $GITHUB_OUTPUT
 
       - name: テスト結果の Slack 通知
         uses: ravsamhq/notify-slack-action@v2
@@ -63,18 +38,17 @@ jobs:
           status: ${{ job.status }}
           notification_title: "`${{ job.status == 'success' && '✅' || '❌' }}` ${{ github.event.repository.name }} のテストが${{ job.status == 'success' && '成功しました' || '失敗しました' }}"
           message_format: |
-            ブランチ: `${{ github.ref_name }}`
+            ブランチ: `${{ github.head_ref }}`
             コミット: `{commit_sha}`
 
-            *テスト結果*
+            テスト結果
             > Unitテスト `${{ job.status == 'success' && 'PASS' || 'FAIL' }}`
             > E2Eテスト  `${{ job.status == 'success' && 'PASS' || 'FAIL' }}`
+            
+            *📋 関連Issue:* <${{ steps.link.outputs.issue_link }}| #${{ steps.link.outputs.issue_number }}>
+            ${{ steps.get-commits.outputs.pr_commits }}
 
-            *最近のコミット*
-            ```
-            ${{ steps.pr-info.outputs.commits }}
-            ```
-            footer: "<${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}|コミット詳細を表示> | <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|ワークフロー実行を表示>"
+          footer: "<${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}|コミット詳細を表示> | <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|ワークフロー実行を表示>"
           notify_when: "success,failure"
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
