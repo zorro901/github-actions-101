@@ -11,13 +11,13 @@ jobs:
         if: always()
         with:
           status: ${{ job.status }}
-          notification_title: "${{ job.status == 'success' && '✅' || '❌' }} <${{ github.server_url }}/${{ github.repository }}|${{ github.event.repository.name }}> のテストが${{ job.status == 'success' && '成功しました' || '失敗しました' }}"
+          notification_title: "`${{ job.status == 'success' && '✅' || '❌' }}` <${{ github.server_url }}/${{ github.repository }}|${{ github.event.repository.name }}> のテストが${{ job.status == 'success' && '成功しました' || '失敗しました' }}"
           message_format: |
             ブランチ: `${{ github.ref_name }}`
             コミット: `{commit_sha}`
 
-            `${{ job.status == 'success' && '✅' || '❌' }}` Unitテスト
-            `${{ job.status == 'success' && '✅' || '❌' }}` E2Eテスト
+            `${{ job.status == 'success' && '✅' || '❌' }}` Unitテスト `PASS`
+            `${{ job.status == 'success' && '✅' || '❌' }}` E2Eテスト  `PASS`
 
             コミット詳細
             > ${{ github.event.head_commit.message }}
