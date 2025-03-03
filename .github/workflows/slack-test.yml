@@ -6,6 +6,19 @@ jobs:
   github_check_job:
     runs-on: ubuntu-latest
     steps:
+      - name: チェックアウト
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 5  # 最近の5つのコミットを取得
+
+      - name: コミット履歴を取得
+        id: get_commits
+        run: |
+          COMMITS=$(git log -5 --pretty=format:"%h - %s" | sed 's/"/\\"/g')
+          echo "commits<<EOF" >> $GITHUB_OUTPUT
+          echo "$COMMITS" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
       - name: テスト結果の Slack 通知
         uses: ravsamhq/notify-slack-action@v2
         if: always()
@@ -16,13 +29,15 @@ jobs:
             ブランチ: `${{ github.ref_name }}`
             コミット: `{commit_sha}`
 
-            テスト結果
-            > Unitテスト `${{ job.status == 'success' && 'PASS' || 'FAILED' }}`
-            > E2Eテスト  `${{ job.status == 'success' && 'PASS' || 'FAILED' }}`
+            *テスト結果*
+            > Unitテスト `${{ job.status == 'success' && 'PASS' || 'FAIL' }}`
+            > E2Eテスト  `${{ job.status == 'success' && 'PASS' || 'FAIL' }}`
 
-            コミット詳細
-            > ${{ github.event.head_commit.message }}
-          footer: "<${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}|コミット詳細を表示> | <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|ワークフロー実行を表示>"
+            *最近のコミット*
+            ```
+            ${{ steps.get_commits.outputs.commits }}
+            ```
+            footer: "<${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}|コミット詳細を表示> | <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|ワークフロー実行を表示>"
           notify_when: "success,failure"
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
