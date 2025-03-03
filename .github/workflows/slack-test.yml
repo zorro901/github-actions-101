@@ -16,8 +16,8 @@ jobs:
             *ブランチ:* `${{ github.ref_name }}`
             *コミット:* `${{ github.sha }}`
       
-            ${{ job.status == 'success' && ':white_check_mark:' || ':x:' }} *Unitテスト*    `${{ job.status == 'success' && 'PASS' || 'FAIL' }}`
-            ${{ job.status == 'success' && ':white_check_mark:' || ':x:' }} *E2Eテスト*     `${{ job.status == 'success' && 'PASS' || 'FAIL' }}`
+            *Unitテスト*    `${{ job.status == 'success' && '✅ PASS' || '❌ FAIL' }}`
+            *E2Eテスト*     `${{ job.status == 'success' && '✅ PASS' || '❌ FAIL' }}`
       
             *コミット詳細*
             > ${{ github.event.head_commit.message }}
