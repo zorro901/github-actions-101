@@ -27,23 +27,10 @@ jobs:
         id: link
         run: |
           BRANCH_NAME="${{ github.head_ref || github.ref_name }}"
-          echo "Branch name: $BRANCH_NAME"
-          
-          # 改良: 数字を抽出し、存在するか確認
-          ISSUE_NUMBER=$(echo $BRANCH_NAME | grep -o '^[0-9]\+' || echo "")
-          echo "Extracted issue number: '$ISSUE_NUMBER'"
-          
-          # Issue番号があれば完全なリンクを生成、なければリポジトリのIssuesページへのリンク
-          if [ -n "$ISSUE_NUMBER" ]; then
-            ISSUE_LINK="https://github.com/${{ github.repository }}/issues/$ISSUE_NUMBER"
-            ISSUE_TEXT="#$ISSUE_NUMBER関連Issue"
-          else
-            ISSUE_LINK="https://github.com/${{ github.repository }}/issues"
-            ISSUE_TEXT="Issues一覧"
-          fi
-          
+          ISSUE_NUMBER=$(echo $BRANCH_NAME | grep -o '^[0-9]*')
+          ISSUE_LINK="https://github.com/${{ github.repository }}/issues/$ISSUE_NUMBER"
+          # 出力パラメータとして設定
           echo "issue_link=$ISSUE_LINK" >> $GITHUB_OUTPUT
-          echo "issue_text=$ISSUE_TEXT" >> $GITHUB_OUTPUT
           echo "Generated: $ISSUE_LINK"
 
       - name: テスト結果の Slack 通知
@@ -60,7 +47,7 @@ jobs:
             > Unitテスト `${{ job.status == 'success' && 'PASS' || 'FAIL' }}`
             > E2Eテスト  `${{ job.status == 'success' && 'PASS' || 'FAIL' }}`
             
-            *📋 関連Issue:* <${{ steps.link.outputs.issue_link }}|${{ steps.link.outputs.issue_text }}>
+            *📋 関連Issue:* <${{ steps.link.outputs.issue_link }}|#${{ github.ref_name }}関連Issue>
             ${{ steps.get-commits.outputs.pr_commits }}
 
           footer: "<${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}|コミット詳細を表示> | <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|ワークフロー実行を表示>"
