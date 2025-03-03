@@ -16,38 +16,12 @@ jobs:
       - name: Get PR commits
         id: get-commits
         run: |
-          # PR番号を設定 (イベントから取得するか、直接指定)
-          PR_NUMBER=${{ github.event.pull_request.number || inputs.pr_number }}
-          
-          # コミットのoidとmessageHeadlineを取得
-          COMMITS=$(gh pr view $PR_NUMBER --repo ${{ github.repository }} --json commits \
-            --jq '.commits[] | {oid: .oid, messageHeadline: .messageHeadline}')
-          
-          # 結果をエコー (デバッグ用)
-          echo "PR #$PR_NUMBER Commits:"
-          echo "$COMMITS"
-          
-          # 結果を出力変数に設定 (エスケープして設定)
-          COMMITS_ESCAPED=$(echo "$COMMITS" | jq -c -s '.')
-          echo "commits=$COMMITS_ESCAPED" >> $GITHUB_OUTPUT
+          echo "pr_commits<<EOF" >> $GITHUB_OUTPUT
+          gh pr list --json commits --template '{{range .}}{{range (slice .commits 0 3)}} - [{{slice .oid 0 7}}](https://github.com/zorro901/github-actions-101/commit/{{.oid}}) {{.messageHeadline}}
+          {{end}}{{end}}' >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      # PR情報がなかった場合のフォールバック
-      - name: Set fallback commit info
-        id: fallback-commits
-        if: steps.PR.outputs.pr_found != 'true'
-        run: |
-          echo "commits=No PR found for this commit" >> $GITHUB_OUTPUT
-
-      - name: コミットメッセージをフォーマット
-        id: format-commits
-        if: steps.get-commits.outputs.commits != ''
-        run: |
-          COMMITS='${{ steps.get-commits.outputs.commits }}'
-          # 各コミットメッセージを処理し、Markdownリスト形式にして改行を保持
-          FORMATTED_COMMITS=$(echo "$COMMITS" | jq -r '.[] | "- " + .messageHeadline' | awk '{printf "%s\\n", $0}')
-          echo "formatted_commits=$FORMATTED_COMMITS" >> $GITHUB_OUTPUT
 
       - name: テスト結果の Slack 通知
         uses: ravsamhq/notify-slack-action@v2
@@ -64,7 +38,7 @@ jobs:
             > E2Eテスト  `${{ job.status == 'success' && 'PASS' || 'FAIL' }}`
             
             PR情報:
-              - PR JSON: ${{ steps.format-commits.outputs.formatted_commits }}
+              - PR JSON: ${{ steps.get-commits.outputs }}
 
           footer: "<${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}|コミット詳細を表示> | <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|ワークフロー実行を表示>"
           notify_when: "success,failure"
