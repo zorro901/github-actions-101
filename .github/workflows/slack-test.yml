@@ -1,7 +1,9 @@
 on:
+  pull_request:
   push:
     branches:
       - main
+
 jobs:
   github_check_job:
     runs-on: ubuntu-latest
@@ -11,13 +13,48 @@ jobs:
         with:
           fetch-depth: 5  # 最近の5つのコミットを取得
 
-      - name: コミット履歴を取得
-        id: get_commits
+      - name: Get PR and commit information
+        id: pr-info
         run: |
-          COMMITS=$(git log -5 --pretty=format:"%h - %s" | sed 's/"/\\"/g')
-          echo "commits<<EOF" >> $GITHUB_OUTPUT
-          echo "$COMMITS" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+          EVENT_NAME="${{ github.event_name }}"
+          REPO_URL="${{ github.server_url }}/${{ github.repository }}"
+          ISSUES_URL="$REPO_URL/issues"
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            PR_NUMBER="${{ github.event.pull_request.number }}"
+            PR_TITLE="${{ github.event.pull_request.title }}"
+            HEAD_BRANCH="${{ github.event.pull_request.head.ref }}"
+            BASE_BRANCH="${{ github.event.pull_request.base.ref }}"
+          else
+            # Push eventの場合、マージされたPRの情報を取得
+            PR_NUMBER=$(gh pr list --search "${{ github.sha }}" --state merged --json number --jq '.[0].number')
+            if [ ! -z "$PR_NUMBER" ]; then
+              PR_INFO=$(gh pr view $PR_NUMBER --json title,headRefName,baseRefName)
+              PR_TITLE=$(echo $PR_INFO | jq -r '.title')
+              HEAD_BRANCH=$(echo $PR_INFO | jq -r '.headRefName')
+              BASE_BRANCH=$(echo $PR_INFO | jq -r '.baseRefName')
+            fi
+          fi
+
+          if [ ! -z "$PR_NUMBER" ]; then
+            git fetch origin pull/$PR_NUMBER/head:pr-$PR_NUMBER
+
+            COMMITS=$(git log --reverse --pretty=format:"* %s" origin/$BASE_BRANCH..pr-$PR_NUMBER | perl -pe 's!#(\d+)!\(#<'$ISSUES_URL'/$1|$1>\)!g')
+            {
+              echo "number=$PR_NUMBER"
+              echo "title=$PR_TITLE"
+              echo "head_branch=$HEAD_BRANCH"
+              echo "head_branch_url=<$REPO_URL/tree/$HEAD_BRANCH|$HEAD_BRANCH>"
+              echo "base_branch=$BASE_BRANCH"
+              echo "commits<<EOF"
+              echo "$COMMITS"
+              echo "EOF"
+            } >> $GITHUB_OUTPUT
+          else
+            echo "branch=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+            echo "commits=No PR found for this commit" >> $GITHUB_OUTPUT
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: テスト結果の Slack 通知
         uses: ravsamhq/notify-slack-action@v2
@@ -35,7 +72,7 @@ jobs:
 
             *最近のコミット*
             ```
-            ${{ steps.get_commits.outputs.commits }}
+            ${{ steps.pr-info.outputs.commits }}
             ```
             footer: "<${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}|コミット詳細を表示> | <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|ワークフロー実行を表示>"
           notify_when: "success,failure"
