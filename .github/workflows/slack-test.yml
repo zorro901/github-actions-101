@@ -17,7 +17,7 @@ jobs:
         id: get-commits
         run: |
           echo "pr_commits<<EOF" >> $GITHUB_OUTPUT
-          gh pr list --json commits --template '{{range .}}{{range (slice .commits 0 3)}}• [{{slice .oid 0 7}}](https://github.com/zorro901/github-actions-101/commit/{{.oid}}) {{.messageHeadline}}
+          gh pr list --json commits --template '{{range .}}{{range (slice .commits 0 3)}}• <https://github.com/zorro901/github-actions-101/commit/{{.oid}}|{{slice .oid 0 7}}> {{.messageHeadline}}
           {{end}}{{end}}' >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
         env:
