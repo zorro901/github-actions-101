@@ -40,6 +40,14 @@ jobs:
         run: |
           echo "commits=No PR found for this commit" >> $GITHUB_OUTPUT
 
+      - name: コミットメッセージをフォーマット
+        id: format-commits
+        if: steps.get-commits.outputs.commits != ''
+        run: |
+          COMMITS='${{ steps.get-commits.outputs.commits }}'
+          FORMATTED_COMMITS=$(echo "$COMMITS" | jq -r '.[] | "- " + .messageHeadline' | tr '\n' '\\n')
+          echo "formatted_commits=$FORMATTED_COMMITS" >> $GITHUB_OUTPUT
+
       - name: テスト結果の Slack 通知
         uses: ravsamhq/notify-slack-action@v2
         if: always()
@@ -55,7 +63,7 @@ jobs:
             > E2Eテスト  `${{ job.status == 'success' && 'PASS' || 'FAIL' }}`
             
             PR情報:
-              - PR JSON: ${{ toJSON(fromJSON(steps.get-commits.outputs.commits)) }}
+              - PR JSON: ${{ steps.format-commits.outputs.formatted_commits }}
 
           footer: "<${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}|コミット詳細を表示> | <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|ワークフロー実行を表示>"
           notify_when: "success,failure"
