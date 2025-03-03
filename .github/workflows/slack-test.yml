@@ -68,6 +68,7 @@ jobs:
             > E2Eテスト  `${{ job.status == 'success' && 'PASS' || 'FAIL' }}`
             
             PR情報:
+              - PR JSON: ${{ toJSON(fromJSON(steps.PR.outputs.pr)) }}
               - PR Found: `${{ steps.PR.outputs.pr_found }}`
               - PR Number: `${{ steps.PR.outputs.number }}`
               - PR Title: `${{ steps.PR.outputs.pr_title }}`
