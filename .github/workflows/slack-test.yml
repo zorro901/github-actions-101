@@ -19,11 +19,9 @@ jobs:
         id: PR
         with:
           github-token: ${{ github.token }}
-          # 現在のコミットSHAに関連するPRを検索
-          sha: ${{ github.sha }}
-          # マージ済みのPRも検索するためfalseに設定（mainへのマージ後の検出に必要）
+          # イベントタイプに応じて適切なSHAを設定
+          sha: ${{ github.event.pull_request.head.sha || github.sha }}
           filterOutClosed: false
-          # ドラフトPRも含める
           filterOutDraft: false
 
       # PR情報が見つかった場合、そのPRのコミット一覧を取得
