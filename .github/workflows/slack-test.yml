@@ -60,7 +60,7 @@ jobs:
             > Unitテスト `${{ job.status == 'success' && 'PASS' || 'FAIL' }}`
             > E2Eテスト  `${{ job.status == 'success' && 'PASS' || 'FAIL' }}`
             
-            *📋 関連Issue:* <${{ steps.link.outputs.issue_link }}|#${{ github.ref_name }}関連Issue>
+            *📋 関連Issue:* <${{ steps.link.outputs.issue_link }}|${{ steps.link.outputs.issue_text }}>
             ${{ steps.get-commits.outputs.pr_commits }}
 
           footer: "<${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}|コミット詳細を表示> | <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|ワークフロー実行を表示>"
