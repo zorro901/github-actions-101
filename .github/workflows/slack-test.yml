@@ -29,9 +29,8 @@ jobs:
           BRANCH_NAME="${{ github.head_ref || github.ref_name }}"
           ISSUE_NUMBER=$(echo $BRANCH_NAME | grep -o '^[0-9]*')
           ISSUE_LINK="https://github.com/${{ github.repository }}/issues/$ISSUE_NUMBER"
-          # 出力パラメータとして設定
+          echo "issue_number=$ISSUE_NUMBER" >> $GITHUB_OUTPUT
           echo "issue_link=$ISSUE_LINK" >> $GITHUB_OUTPUT
-          echo "Generated: $ISSUE_LINK"
 
       - name: テスト結果の Slack 通知
         uses: ravsamhq/notify-slack-action@v2
@@ -47,7 +46,7 @@ jobs:
             > Unitテスト `${{ job.status == 'success' && 'PASS' || 'FAIL' }}`
             > E2Eテスト  `${{ job.status == 'success' && 'PASS' || 'FAIL' }}`
             
-            *📋 関連Issue:* <${{ steps.link.outputs.issue_link }}|#${{ github.ref_name }}関連Issue>
+            *📋 関連Issue:* <${{ steps.link.outputs.issue_link }}|Issue #${{ steps.link.outputs.issue_number }}>
             ${{ steps.get-commits.outputs.pr_commits }}
 
           footer: "<${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}|コミット詳細を表示> | <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|ワークフロー実行を表示>"
