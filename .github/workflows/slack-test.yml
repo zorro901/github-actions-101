@@ -45,7 +45,8 @@ jobs:
         if: steps.get-commits.outputs.commits != ''
         run: |
           COMMITS='${{ steps.get-commits.outputs.commits }}'
-          FORMATTED_COMMITS=$(echo "$COMMITS" | jq -r '.[] | "- " + .messageHeadline' | tr '\n' '\\n')
+          # 各コミットメッセージを処理し、Markdownリスト形式にして改行を保持
+          FORMATTED_COMMITS=$(echo "$COMMITS" | jq -r '.[] | "- " + .messageHeadline' | awk '{printf "%s\\n", $0}')
           echo "formatted_commits=$FORMATTED_COMMITS" >> $GITHUB_OUTPUT
 
       - name: テスト結果の Slack 通知
