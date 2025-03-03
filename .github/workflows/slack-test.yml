@@ -17,11 +17,43 @@ jobs:
         id: get-commits
         run: |
           echo "pr_commits<<EOF" >> $GITHUB_OUTPUT
-          gh pr list --json commits --template '{{range .}}{{range (slice .commits 0 3)}}• <${{ github.server_url }}/${{ github.repository }}/commit/{{.oid}}|{{slice .oid 0 7}}> {{.messageHeadline}}
+          gh pr list --json commits --template '{{range .}}{{range .commits}}• <${{ github.server_url }}/${{ github.repository }}/commit/{{.oid}}|{{slice .oid 0 7}}> {{.messageHeadline}}
           {{end}}{{end}}' >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract issue number from branch name
+        id: extract-issue
+        run: |
+          BRANCH_NAME="${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}"
+          echo "Branch name: $BRANCH_NAME"
+          
+          # Extract the issue number from the beginning of the branch name (format: number-description)
+          if [[ $BRANCH_NAME =~ ^([0-9]+)- ]]; then
+            ISSUE_NUMBER=${BASH_REMATCH[1]}
+            echo "ISSUE_NUMBER=$ISSUE_NUMBER" >> $GITHUB_ENV
+            echo "issue_number=$ISSUE_NUMBER" >> $GITHUB_OUTPUT
+            echo "Found issue number: $ISSUE_NUMBER"
+          else
+            echo "No issue number found in branch name: $BRANCH_NAME"
+            echo "ISSUE_NUMBER=none" >> $GITHUB_ENV
+            echo "issue_number=none" >> $GITHUB_OUTPUT
+          fi
+
+      # PRのコミット情報とIssueリンクを取得するステップを追加
+      - name: Get PR commits with issue link
+        id: get-pr-info
+        run: |
+          ISSUE_NUMBER="${{ steps.extract-issue.outputs.issue_number }}"
+          ISSUE_LINK=""
+          
+          if [ "$ISSUE_NUMBER" != "none" ]; then
+            REPO_URL="${{ github.server_url }}/${{ github.repository }}"
+            ISSUE_LINK="<${REPO_URL}/issues/${ISSUE_NUMBER}|#${ISSUE_NUMBER}>"
+          fi
+          
+          echo "issue_link=$ISSUE_LINK" >> $GITHUB_OUTPUT
 
       - name: テスト結果の Slack 通知
         uses: ravsamhq/notify-slack-action@v2
@@ -37,7 +69,7 @@ jobs:
             > Unitテスト `${{ job.status == 'success' && 'PASS' || 'FAIL' }}`
             > E2Eテスト  `${{ job.status == 'success' && 'PASS' || 'FAIL' }}`
             
-            *📋 PR コミット:*
+            *📋 PR コミット:* ${{ steps.get-pr-info.outputs.issue_link != '' && '(' + steps.get-pr-info.outputs.issue_link + ')' || '' }}
             ${{ steps.get-commits.outputs.pr_commits }}
 
           footer: "<${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}|コミット詳細を表示> | <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|ワークフロー実行を表示>"
