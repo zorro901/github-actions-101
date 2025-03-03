@@ -8,18 +8,16 @@ jobs:
   github_check_job:
     runs-on: ubuntu-latest
     steps:
-      - name: チェックアウト
+      - name: ソースコードのチェックアウト
         uses: actions/checkout@v4
         with:
           fetch-depth: 0  # 全てのコミットを取得
 
-      - name: Get context info
+      - name: 実行コンテキスト情報の取得
         id: context
         run: |
           EVENT_TYPE="${{ github.event_name }}"
-          echo "event_type=$EVENT_TYPE" >> $GITHUB_OUTPUT
           
-          # mainブランチへのpushかPRかを判定
           if [[ "$EVENT_TYPE" == "pull_request" ]]; then
             echo "is_pr=true" >> $GITHUB_OUTPUT
             echo "pr_number=${{ github.event.pull_request.number }}" >> $GITHUB_OUTPUT
@@ -55,7 +53,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Get PR commits
+      - name: プルリクエストのコミット履歴取得
         id: get-commits
         run: |
           if [[ "${{ steps.context.outputs.is_pr }}" == "true" ]]; then
@@ -74,7 +72,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Generate Issue Link
+      - name: 関連Issueリンクの生成
         id: link
         if: steps.context.outputs.is_pr == 'true'
         run: |
@@ -84,12 +82,11 @@ jobs:
             ISSUE_LINK="https://github.com/${{ github.repository }}/issues/$ISSUE_NUMBER"
             echo "issue_number=$ISSUE_NUMBER" >> $GITHUB_OUTPUT
             echo "issue_link=$ISSUE_LINK" >> $GITHUB_OUTPUT
-          else
-            echo "issue_number=" >> $GITHUB_OUTPUT
-            echo "issue_link=" >> $GITHUB_OUTPUT
           fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: テスト結果の Slack 通知
+      - name: テスト結果のSlack通知送信
         uses: ravsamhq/notify-slack-action@v2
         if: always()
         with:
