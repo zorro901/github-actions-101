@@ -11,15 +11,13 @@ jobs:
         if: always()
         with:
           status: ${{ job.status }}
-          notification_title: "{workflow} テスト ${{ job.status == 'success' && '成功' || '失敗' }} #${{ github.run_number }}"
+          notification_title: "{emoji} {workflow} テスト ${{ job.status == 'success' && '成功' || '失敗' }} #${{ github.run_number }}"
           message_format: |
-            *ブランチ:* `${{ github.ref_name }}`
-            *コミット:* `${{ github.sha }}`
-      
-            *Unitテスト*    `${{ job.status == 'success' && '✅ PASS' || '❌ FAIL' }}`
-            *E2Eテスト*     `${{ job.status == 'success' && '✅ PASS' || '❌ FAIL' }}`
-      
-            *コミット詳細*
+            ブランチ: ${{ github.ref_name }}
+            コミット: ${{ github.sha && github.sha.substring(0,7) }}
+            ${{ job.status == 'success' && '✅' || '❌' }} Unitテスト
+            ${{ job.status == 'success' && '✅' || '❌' }} E2Eテスト
+            コミット詳細
             > ${{ github.event.head_commit.message }}
           footer: "<${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}|コミット詳細を表示> | <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|ワークフロー実行を表示>"
           notify_when: "success,failure"
