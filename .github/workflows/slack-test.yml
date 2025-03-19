@@ -13,78 +13,8 @@ jobs:
         with:
           fetch-depth: 0  # 全てのコミットを取得
 
-      - name: 実行コンテキスト情報の取得
-        id: context
-        run: |
-          EVENT_TYPE="${{ github.event_name }}"
-          
-          if [[ "$EVENT_TYPE" == "pull_request" ]]; then
-            echo "is_pr=true" >> $GITHUB_OUTPUT
-            echo "pr_number=${{ github.event.pull_request.number }}" >> $GITHUB_OUTPUT
-            echo "branch_name=${{ github.head_ref }}" >> $GITHUB_OUTPUT
-          else
-            echo "is_pr=false" >> $GITHUB_OUTPUT
-            echo "branch_name=main" >> $GITHUB_OUTPUT
-          
-            # マージコミットの場合は親コミットを取得
-            if git show -s --format=%P ${{ github.sha }} | grep -q " "; then
-              echo "is_merge=true" >> $GITHUB_OUTPUT
-              # マージ元のPRを検索
-              PR_URL=$(git log -1 --pretty=%B ${{ github.sha }} | grep -o 'Merge pull request #[0-9]\+' | grep -o '#[0-9]\+')
-              if [[ -n "$PR_URL" ]]; then
-                PR_NUMBER=$(echo $PR_URL | grep -o '[0-9]\+')
-                echo "merged_pr=$PR_NUMBER" >> $GITHUB_OUTPUT
-          
-                # マージ元のブランチ名を取得
-                BRANCH_NAME=$(gh pr view $PR_NUMBER --json headRefName -q .headRefName)
-                echo "source_branch=$BRANCH_NAME" >> $GITHUB_OUTPUT
-          
-                # Issue番号を取得
-                ISSUE_NUMBER=$(echo $BRANCH_NAME | grep -o '^[0-9]*')
-                if [[ -n "$ISSUE_NUMBER" ]]; then
-                  echo "issue_number=$ISSUE_NUMBER" >> $GITHUB_OUTPUT
-                  echo "issue_link=https://github.com/${{ github.repository }}/issues/$ISSUE_NUMBER" >> $GITHUB_OUTPUT
-                fi
-              fi
-            else
-              echo "is_merge=false" >> $GITHUB_OUTPUT
-            fi
-          fi
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: プルリクエストのコミット履歴取得
-        id: get-commits
-        run: |
-          if [[ "${{ steps.context.outputs.is_pr }}" == "true" ]]; then
-            # PR更新時の処理
-            echo "pr_commits<<EOF" >> $GITHUB_OUTPUT
-            gh pr view ${{ steps.context.outputs.pr_number }} --json commits | jq -r '.commits | reverse | .[] | "• <${{ github.server_url }}/${{ github.repository }}/commit/\(.oid)|" + (.oid | .[0:7]) + "> \(.messageHeadline)"' >> $GITHUB_OUTPUT
-            echo "EOF" >> $GITHUB_OUTPUT
-          elif [[ "${{ steps.context.outputs.is_merge }}" == "true" && -n "${{ steps.context.outputs.merged_pr }}" ]]; then
-            # マージコミット時の処理
-            echo "pr_commits<<EOF" >> $GITHUB_OUTPUT
-            gh pr view ${{ steps.context.outputs.merged_pr }} --json commits | jq -r '.commits | reverse | .[] | "• <${{ github.server_url }}/${{ github.repository }}/commit/\(.oid)|" + (.oid | .[0:7]) + "> \(.messageHeadline)"' >> $GITHUB_OUTPUT
-            echo "EOF" >> $GITHUB_OUTPUT
-          else
-            echo "pr_commits=" >> $GITHUB_OUTPUT
-          fi
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: 関連Issueリンクの生成
-        id: link
-        if: steps.context.outputs.is_pr == 'true'
-        run: |
-          BRANCH_NAME="${{ steps.context.outputs.branch_name }}"
-          ISSUE_NUMBER=$(echo $BRANCH_NAME | grep -o '^[0-9]*')
-          if [[ -n "$ISSUE_NUMBER" ]]; then
-            ISSUE_LINK="https://github.com/${{ github.repository }}/issues/$ISSUE_NUMBER"
-            echo "issue_number=$ISSUE_NUMBER" >> $GITHUB_OUTPUT
-            echo "issue_link=$ISSUE_LINK" >> $GITHUB_OUTPUT
-          fi
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
 
       - name: テスト結果のSlack通知送信
         uses: ravsamhq/notify-slack-action@v2
@@ -100,9 +30,6 @@ jobs:
             > Unitテスト `${{ job.status == 'success' && 'PASS' || 'FAIL' }}`
             > E2Eテスト  `${{ job.status == 'success' && 'PASS' || 'FAIL' }}`
             
-            ${{ (steps.link.outputs.issue_number || steps.context.outputs.issue_number) && format('*📋 関連Issue:* <{0}| #{1}>', steps.link.outputs.issue_link || steps.context.outputs.issue_link, steps.link.outputs.issue_number || steps.context.outputs.issue_number) || '' }}
-            ${{ steps.get-commits.outputs.pr_commits }}
-
           footer: "<${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}|コミット詳細を表示> | <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|ワークフロー実行を表示>"
           notify_when: "success,failure"
         env:
