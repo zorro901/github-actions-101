@@ -8,61 +8,28 @@ jobs:
   github_check_job:
     runs-on: ubuntu-latest
     steps:
-      - name: チェックアウト
+      - name: ソースコードのチェックアウト
         uses: actions/checkout@v4
         with:
           fetch-depth: 0  # 全てのコミットを取得
 
-      - name: Get PR information
-        uses: 8BitJonny/gh-get-current-pr@3.0.0
-        id: PR
-        with:
-          github-token: ${{ github.token }}
-          # Pull_Requestイベントの場合はhead.shaを、それ以外の場合は現在のSHAを使用
-          sha: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
-          # マージ済みのPRも検索するためfalseに設定
-          filterOutClosed: false
-          filterOutDraft: false
-
-      - name: Get PR Commits
-        id: pr-commits
-        if: steps.PR.outputs.pr_found == 'true'
-        run: |
-          PR_NUMBER="${{ steps.PR.outputs.number }}"
-          REPO_URL="${{ github.server_url }}/${{ github.repository }}"
-          ISSUES_URL="$REPO_URL/issues"
-          
-          # GitHub CLIでコミット一覧を取得
-          COMMITS=$(gh pr view $PR_NUMBER --json commits --jq '.commits[].commit.message' | \
-                   grep -v "^$" | sed 's/^/* /' | \
-                   perl -pe 's!#(\d+)!\(#<'$ISSUES_URL'/$1|$1>\)!g')
-          
-          echo "commits<<EOF" >> $GITHUB_OUTPUT
-          echo "$COMMITS" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
         env:
           GH_TOKEN: ${{ github.token }}
 
-      - name: テスト結果の Slack 通知
+      - name: テスト結果のSlack通知送信
         uses: ravsamhq/notify-slack-action@v2
         if: always()
         with:
           status: ${{ job.status }}
           notification_title: "`${{ job.status == 'success' && '✅' || '❌' }}` ${{ github.event.repository.name }} のテストが${{ job.status == 'success' && '成功しました' || '失敗しました' }}"
           message_format: |
-            ブランチ: `${{ github.ref_name }}`
+            ブランチ: `${{ steps.context.outputs.is_pr == 'true' && steps.context.outputs.branch_name || steps.context.outputs.source_branch || 'main' }}`
             コミット: `{commit_sha}`
 
             テスト結果
             > Unitテスト `${{ job.status == 'success' && 'PASS' || 'FAIL' }}`
             > E2Eテスト  `${{ job.status == 'success' && 'PASS' || 'FAIL' }}`
             
-            ${{ steps.PR.outputs.pr_found == 'true' && format('PR: <{0}/pull/{1}|#{1} {2}>', github.server_url, steps.PR.outputs.number, steps.PR.outputs.pr_title) || 'PR: なし' }}
-            
-            PRコミット
-            ```
-            ${{ steps.PR.outputs.pr_found == 'true' && steps.pr-commits.outputs.commits || 'No PR found for this commit' }}
-            ```
           footer: "<${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}|コミット詳細を表示> | <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|ワークフロー実行を表示>"
           notify_when: "success,failure"
         env:
